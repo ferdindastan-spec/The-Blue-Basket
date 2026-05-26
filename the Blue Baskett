@@ -1,0 +1,386 @@
+import { useState, useRef, useEffect } from "react";
+
+const GStyles = ({ dark }) => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:${dark?"#0D1117":"#EEF4FF"};}
+    input,textarea,button,select{font-family:'Inter',sans-serif;}
+    ::-webkit-scrollbar{width:3px;}
+    ::-webkit-scrollbar-thumb{background:${dark?"#2A3550":"#B8CAEE"};border-radius:4px;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes popIn{0%{transform:scale(0.86);opacity:0}100%{transform:scale(1);opacity:1}}
+    @keyframes floatBadge{0%{transform:scale(0)}60%{transform:scale(1.35)}100%{transform:scale(1)}}
+    @keyframes recPulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    @keyframes waveBar{0%,100%{transform:scaleY(0.25)}50%{transform:scaleY(1)}}
+    @keyframes slideIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    @keyframes checkPop{0%{transform:scale(0)}70%{transform:scale(1.3)}100%{transform:scale(1)}}
+    .fu{animation:fadeUp 0.36s ease both;}
+    .pi{animation:popIn 0.28s cubic-bezier(.34,1.56,.64,1) both;}
+    .si{animation:slideIn 0.32s cubic-bezier(.2,.8,.4,1) both;}
+    .card{transition:transform 0.18s,box-shadow 0.18s;}
+    .card:hover{transform:translateY(-2px);}
+    .btn{transition:filter 0.14s,transform 0.1s;}
+    .btn:hover{filter:brightness(0.92);transform:scale(0.98);}
+    .rec{animation:recPulse 1s ease infinite;}
+    .wav{animation:waveBar 0.55s ease infinite;}
+    .chk{animation:checkPop 0.3s cubic-bezier(.34,1.56,.64,1) both;}
+  `}</style>
+);
+
+const mkTheme = (accent="#3D6FD4", dark=false) => {
+  if (dark) return { bg:"#0D1117",bgAlt:"#161B27",card:"#1C2336",border:"#253050",border2:"#2E3C60",text:"#E8EEFF",sub:"#7A8DB8",dim:"#3A4A70",accent,blue1:"#1E3A6E",blue2:"#2A5298",blue3:"#3D6FD4",blue4:"#6B9FFF",blue5:"#A8C4FF",success:"#5AB88A",danger:"#E07080",gold:"#C9A84C",shadow:"rgba(0,0,10,0.5)",overlay:"rgba(0,0,10,0.8)",ff:"'Inter',sans-serif",serif:"'Playfair Display',serif" };
+  return { bg:"#EEF4FF",bgAlt:"#E2ECFF",card:"#FFFFFF",border:"#D0DCFF",border2:"#B8CAEE",text:"#0D1B3E",sub:"#5A6E9A",dim:"#A0B0D0",accent,blue1:"#EEF4FF",blue2:"#C8DAFF",blue3:"#7AA4E8",blue4:"#3D6FD4",blue5:"#1B3F8A",success:"#3D9E6A",danger:"#C85060",gold:"#B8922A",shadow:"rgba(30,60,140,0.10)",overlay:"rgba(10,20,60,0.55)",ff:"'Inter',sans-serif",serif:"'Playfair Display',serif" };
+};
+
+const CATEGORIES = [
+  {id:"groceries",label:"Groceries",icon:"🛒",color:"#3DAD6A"},{id:"household",label:"Household",icon:"🏠",color:"#3D6FD4"},
+  {id:"clothes",label:"Clothing",icon:"👗",color:"#A84FD4"},{id:"electronics",label:"Electronics",icon:"💻",color:"#D4844F"},
+  {id:"health",label:"Health",icon:"💊",color:"#D44F6A"},{id:"beauty",label:"Beauty",icon:"💄",color:"#D44FA8"},
+  {id:"sports",label:"Sports",icon:"⚽",color:"#4FAD3D"},{id:"toys",label:"Toys & Games",icon:"🎮",color:"#D4C44F"},
+  {id:"books",label:"Books",icon:"📚",color:"#6A3DD4"},{id:"food",label:"Dining & Food",icon:"🍽️",color:"#D4694F"},
+  {id:"travel",label:"Travel",icon:"✈️",color:"#4FBBD4"},{id:"other",label:"Other",icon:"📦",color:"#8A9A9A"},
+];
+const catById = id => CATEGORIES.find(c=>c.id===id)||CATEGORIES[CATEGORIES.length-1];
+const COLOUR_SWATCHES = ["#3D6FD4","#6B4FD4","#D44F8A","#D44F4F","#D4844F","#D4C44F","#4FAD6B","#4FBBD4","#1B3F8A","#8A1B6B","#1B8A52","#8A5A1B","#2D2D2D","#7A4FBF","#BF4F4F"];
+const REACTIONS = ["❤️","😘","🥰","👏","🙏","🎉"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const RECUR_OPTS = [{id:"none",label:"No repeat"},{id:"weekly",label:"Every week"},{id:"biweekly",label:"Every 2 weeks"},{id:"monthly",label:"Every month"}];
+
+const CURRENCIES = [
+  {code:"USD",symbol:"$",name:"US Dollar",flag:"🇺🇸"},{code:"EUR",symbol:"€",name:"Euro",flag:"🇪🇺"},
+  {code:"GBP",symbol:"£",name:"British Pound",flag:"🇬🇧"},{code:"NGN",symbol:"₦",name:"Nigerian Naira",flag:"🇳🇬"},
+  {code:"GHS",symbol:"₵",name:"Ghanaian Cedi",flag:"🇬🇭"},{code:"ZAR",symbol:"R",name:"South African Rand",flag:"🇿🇦"},
+  {code:"KES",symbol:"KSh",name:"Kenyan Shilling",flag:"🇰🇪"},{code:"INR",symbol:"₹",name:"Indian Rupee",flag:"🇮🇳"},
+  {code:"SAR",symbol:"﷼",name:"Saudi Riyal",flag:"🇸🇦"},{code:"AED",symbol:"د.إ",name:"UAE Dirham",flag:"🇦🇪"},
+  {code:"BRL",symbol:"R$",name:"Brazilian Real",flag:"🇧🇷"},{code:"JPY",symbol:"¥",name:"Japanese Yen",flag:"🇯🇵"},
+  {code:"CNY",symbol:"¥",name:"Chinese Yuan",flag:"🇨🇳"},{code:"CAD",symbol:"CA$",name:"Canadian Dollar",flag:"🇨🇦"},
+  {code:"AUD",symbol:"A$",name:"Australian Dollar",flag:"🇦🇺"},{code:"KRW",symbol:"₩",name:"South Korean Won",flag:"🇰🇷"},
+  {code:"MXN",symbol:"MX$",name:"Mexican Peso",flag:"🇲🇽"},{code:"PHP",symbol:"₱",name:"Philippine Peso",flag:"🇵🇭"},
+  {code:"IDR",symbol:"Rp",name:"Indonesian Rupiah",flag:"🇮🇩"},{code:"TRY",symbol:"₺",name:"Turkish Lira",flag:"🇹🇷"},
+  {code:"PLN",symbol:"zł",name:"Polish Zloty",flag:"🇵🇱"},{code:"SEK",symbol:"kr",name:"Swedish Krona",flag:"🇸🇪"},
+  {code:"NOK",symbol:"kr",name:"Norwegian Krone",flag:"🇳🇴"},{code:"CHF",symbol:"Fr",name:"Swiss Franc",flag:"🇨🇭"},
+  {code:"EGP",symbol:"E£",name:"Egyptian Pound",flag:"🇪🇬"},{code:"PKR",symbol:"₨",name:"Pakistani Rupee",flag:"🇵🇰"},
+];
+const currByCode = code => CURRENCIES.find(c=>c.code===code)||CURRENCIES[0];
+const fmt = (n, sym="$") => `${sym}${(n||0).toFixed(2)}`;
+
+const SEED_FAMILY = {name:"The Johnson Family",banner:null,photo:null,accentColor:"#3D6FD4",currency:"USD"};
+const SEED_PROFILES = [
+  {id:1,name:"Sarah",role:"Mother",photo:null,pageColor:"#D44F8A",isPrivate:false,notifications:[]},
+  {id:2,name:"James",role:"Father",photo:null,pageColor:"#3D6FD4",isPrivate:false,notifications:[]},
+  {id:3,name:"Emma",role:"Daughter",photo:null,pageColor:"#6B4FD4",isPrivate:false,notifications:[]},
+  {id:4,name:"Liam",role:"Son",photo:null,pageColor:"#4FAD6B",isPrivate:false,notifications:[]},
+];
+const N = Date.now();
+const SEED_ITEMS = [
+  {id:1,forId:3,addedBy:1,name:"Wireless Headphones",note:"White Sony ones 🎧",store:"Best Buy, 200 Park Ave",category:"electronics",price:89.99,recurrence:"none",color:"#6B4FD4",image:null,video:null,purchased:false,purchasedBy:null,reactions:[],comments:[],createdAt:N-86400000},
+  {id:2,forId:4,addedBy:2,name:"Football Boots",note:"Size 7, Nike preferred",store:"SportsDirect, 45 High St",category:"sports",price:64.50,recurrence:"none",color:"#4FAD6B",image:null,video:null,purchased:true,purchasedBy:2,reactions:[{type:"❤️",by:4,at:N-3e6},{type:"😘",by:3,at:N-2e6}],comments:[{id:1,by:4,text:"Thank you Dad!! 🙌",at:N-3600000,type:"text"}],createdAt:N-172800000,purchasedAt:N-86400000},
+  {id:3,forId:1,addedBy:2,name:"Silk Scarf",note:"Burgundy or navy",store:"Nordstrom, 500 Michigan Ave",category:"clothes",price:42.00,recurrence:"none",color:"#D44F8A",image:null,video:null,purchased:false,purchasedBy:null,reactions:[],comments:[],createdAt:N-43200000},
+  {id:4,forId:2,addedBy:1,name:"Milk & Bread",note:"Full-fat milk please",store:"Whole Foods",category:"groceries",price:12.40,recurrence:"weekly",color:"#3DAD6A",image:null,video:null,purchased:true,purchasedBy:1,reactions:[],comments:[],createdAt:N-259200000,purchasedAt:N-200000000},
+  {id:5,forId:1,addedBy:1,name:"Hand Cream",note:"Neutrogena",store:"Boots",category:"beauty",price:8.99,recurrence:"monthly",color:"#D44FA8",image:null,video:null,purchased:true,purchasedBy:1,reactions:[{type:"🥰",by:3,at:N-100000}],comments:[],createdAt:N-302400000,purchasedAt:N-250000000},
+];
+const SEED_CHAT = [
+  {id:1,by:1,text:"Hey everyone, going to the shops later 🛒",at:N-7200000,type:"text"},
+  {id:2,by:4,text:"Can you grab my football boots?? 🙏",at:N-7000000,type:"text"},
+  {id:3,by:2,text:"Already on the list Liam 👍",at:N-6800000,type:"text"},
+];
+
+function timeAgo(ts){if(!ts)return"";const s=Math.floor((Date.now()-ts)/1000);if(s<60)return"just now";if(s<3600)return`${Math.floor(s/60)}m ago`;if(s<86400)return`${Math.floor(s/3600)}h ago`;return`${Math.floor(s/86400)}d ago`;}
+function hexToRgb(hex){return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;}
+
+const Lbl=({children,T,style={}})=><div style={{fontSize:10,letterSpacing:2.5,color:T.dim,textTransform:"uppercase",fontWeight:700,marginBottom:10,...style}}>{children}</div>;
+const Toggle=({on,onToggle,color,T})=><button onClick={onToggle} style={{width:46,height:26,borderRadius:13,background:on?color:T.border2,border:"none",cursor:"pointer",position:"relative",transition:"background 0.25s",flexShrink:0}}><div style={{width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:3,left:on?23:3,transition:"left 0.25s",boxShadow:"0 1px 5px rgba(0,0,0,0.25)"}}/></button>;
+
+function ColourPicker({value,onChange,T}){
+  return <div>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>{COLOUR_SWATCHES.map(c=><button key={c} onClick={()=>onChange(c)} style={{width:28,height:28,borderRadius:"50%",background:c,border:value===c?"3px solid #fff":"3px solid transparent",cursor:"pointer",boxShadow:value===c?`0 0 0 2px ${c}`:"none",transform:value===c?"scale(1.2)":"scale(1)",transition:"all 0.14s"}}/>)}</div>
+    <div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:12,color:T.sub}}>Custom:</span><input type="color" value={value} onChange={e=>onChange(e.target.value)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${T.border2}`,cursor:"pointer",padding:2,background:"transparent"}}/><span style={{fontSize:12,color:T.sub,fontFamily:"monospace"}}>{value}</span></div>
+  </div>;
+}
+
+function Av({p,size=44,badge=0,onClick,ring=false,T}){
+  if(!p)return null;const color=p.pageColor||T.accent;
+  return <div onClick={onClick} style={{position:"relative",width:size,height:size,flexShrink:0,cursor:onClick?"pointer":"default"}}>
+    {p.photo?<img src={p.photo} alt={p.name} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",border:`2.5px solid ${ring?color:"transparent"}`}}/>:<div style={{width:size,height:size,borderRadius:"50%",background:`linear-gradient(135deg,${color}40,${color}18)`,border:`2.5px solid ${color}60`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.38,color,fontFamily:"'Playfair Display',serif",fontWeight:600,userSelect:"none"}}>{p.name?.[0]||"?"}</div>}
+    {badge>0&&<div style={{position:"absolute",top:-3,right:-3,minWidth:17,height:17,borderRadius:9,background:"#E07080",border:`2px solid ${T.bg}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontWeight:700,padding:"0 4px",animation:"floatBadge 0.3s ease"}}>{badge>9?"9+":badge}</div>}
+  </div>;
+}
+
+function DonutChart({segments,total,centerLabel,centerSub,size=180}){
+  const R=70,C=size/2,circ=2*Math.PI*R;let offset=0;
+  const slices=segments.filter(s=>s.value>0).map(s=>{const dash=s.value/total*circ;const gap=circ-dash;const sl={...s,dash,gap,offset};offset+=dash;return sl;});
+  return <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <circle cx={C} cy={C} r={R} fill="none" stroke="#E0E8FF" strokeWidth={22}/>
+    {slices.map((s,i)=><circle key={i} cx={C} cy={C} r={R} fill="none" stroke={s.color} strokeWidth={22} strokeDasharray={`${s.dash} ${s.gap}`} strokeDashoffset={-s.offset} style={{transform:`rotate(-90deg)`,transformOrigin:`${C}px ${C}px`}}/>)}
+    <text x={C} y={C-8} textAnchor="middle" fontSize={20} fontWeight={700} fill="#0D1B3E" fontFamily="'Playfair Display',serif">{centerLabel}</text>
+    <text x={C} y={C+14} textAnchor="middle" fontSize={11} fill="#5A6E9A" fontFamily="'Inter',sans-serif">{centerSub}</text>
+  </svg>;
+}
+
+function QRCode({name,color,T}){
+  const pat=[[1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,1,1,0,1,0,0,1,1,0,1,1,1,0,1],[1,0,1,1,1,0,1,0,1,0,0,0,1,1,1,0,1],[1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],[1,0,1,1,0,1,1,1,0,0,1,0,1,1,0,1,1],[0,1,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0],[1,1,1,1,1,1,1,0,1,1,1,0,1,1,1,1,1],[0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,1],[1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0],[1,0,0,0,0,0,1,0,1,0,0,1,0,0,0,1,1],[1,0,1,1,1,0,1,1,0,1,1,0,1,1,0,0,1],[1,0,0,0,0,0,1,0,1,0,0,1,0,0,1,1,0],[1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1]];
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
+    <div style={{background:T.card,borderRadius:16,padding:16,border:`1px solid ${T.border}`}}><svg width={120} height={120} viewBox="0 0 17 17">{pat.map((row,r)=>row.map((cell,c)=>cell?<rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} fill={color}/>:null))}</svg></div>
+    <div style={{fontSize:13,color:T.sub,textAlign:"center"}}>Scan to add <strong style={{color:T.text}}>{name||"member"}</strong></div>
+  </div>;
+}
+
+function ItemRow({it,T,gp,onClick,onReact,activeId,showFor=false,currSym="$",tripMode=false,onTripTick}){
+  const cat=catById(it.category);
+  const rCount=REACTIONS.reduce((a,r)=>{a[r]=it.reactions.filter(x=>x.type===r).length;return a},{});
+  const recur=RECUR_OPTS.find(r=>r.id===it.recurrence);
+  return <div className="card" onClick={tripMode?undefined:onClick} style={{background:T.card,borderRadius:16,marginBottom:10,overflow:"hidden",border:tripMode&&it.tripTicked?`2px solid ${T.success}`:`1px solid ${T.border}`,cursor:tripMode?"default":"pointer",boxShadow:`0 3px 12px ${T.shadow}`,opacity:tripMode&&it.tripTicked?0.6:1,transition:"all 0.2s"}}>
+    <div style={{height:3,background:it.purchased?T.success:it.color}}/>
+    <div style={{padding:14,display:"flex",gap:12}}>
+      {tripMode?<button onClick={()=>onTripTick(it.id)} className={it.tripTicked?"chk":""} style={{width:44,height:44,borderRadius:12,background:it.tripTicked?T.success:T.bgAlt,border:`2px solid ${it.tripTicked?T.success:T.border2}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,transition:"all 0.2s"}}>{it.tripTicked?"✓":"○"}</button>
+      :(it.image||it.video)?it.video?<video src={it.video} style={{width:54,height:54,borderRadius:11,objectFit:"cover",flexShrink:0}}/>:<img src={it.image} style={{width:54,height:54,borderRadius:11,objectFit:"cover",flexShrink:0}}/>
+      :<div style={{width:54,height:54,borderRadius:11,background:`${it.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{cat.icon}</div>}
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{fontSize:14,fontWeight:700,color:(it.purchased||it.tripTicked)?T.dim:T.text,textDecoration:(it.purchased||it.tripTicked)?"line-through":"none",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:8}}>{it.name}</div>
+          {it.purchased?<div style={{fontSize:10,color:T.success,background:`${T.success}18`,padding:"3px 8px",borderRadius:5,flexShrink:0,fontWeight:700}}>BOUGHT</div>:it.price>0&&<div style={{fontSize:11,color:T.gold,fontWeight:700,flexShrink:0}}>{fmt(it.price,currSym)}</div>}
+        </div>
+        <div style={{display:"flex",gap:5,marginTop:4,alignItems:"center",flexWrap:"wrap"}}>
+          <span style={{fontSize:10,background:`${cat.color}18`,color:cat.color,borderRadius:5,padding:"1px 6px",fontWeight:600,whiteSpace:"nowrap"}}>{cat.icon} {cat.label}</span>
+          {recur&&recur.id!=="none"&&<span style={{fontSize:10,background:`${T.blue3}18`,color:T.blue3,borderRadius:5,padding:"1px 6px",fontWeight:600}}>🔁 {recur.label}</span>}
+          {showFor&&gp(it.forId)&&<span style={{fontSize:10,color:T.sub}}>for {gp(it.forId).name}</span>}
+          {it.store&&<span style={{fontSize:10,color:T.dim,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>📍 {it.store.split(",")[0]}</span>}
+        </div>
+        {!tripMode&&<div style={{display:"flex",gap:5,marginTop:7,alignItems:"center"}}>
+          {REACTIONS.filter(r=>rCount[r]>0).map(r=><span key={r} onClick={e=>{e.stopPropagation();onReact(it.id,r,activeId);}} style={{fontSize:11,background:T.bgAlt,borderRadius:18,padding:"2px 7px",cursor:"pointer",color:T.sub}}>{r} {rCount[r]}</span>)}
+          {it.comments.length>0&&<span style={{fontSize:11,color:T.dim,marginLeft:"auto"}}>💬 {it.comments.length}</span>}
+        </div>}
+      </div>
+    </div>
+  </div>;
+}
+
+export default function App(){
+  const [dark,setDark]=useState(false);
+  const [family,setFamily]=useState(SEED_FAMILY);
+  const [profiles,setProfiles]=useState(SEED_PROFILES);
+  const [items,setItems]=useState(SEED_ITEMS);
+  const [chat,setChat]=useState(SEED_CHAT);
+  const [view,setView]=useState("family");
+  const [activeId,setActiveId]=useState(null);
+  const [selItemId,setSelItemId]=useState(null);
+  const [editItemId,setEditItemId]=useState(null);
+  const [commentText,setCommentText]=useState("");
+  const [chatText,setChatText]=useState("");
+  const [showMedia,setShowMedia]=useState(null);
+  const [tab,setTab]=useState("for");
+  const [catFilter,setCatFilter]=useState("all");
+  const [inviteStep,setInviteStep]=useState("method");
+  const [inviteData,setInviteData]=useState({name:"",role:"",phone:"",email:"",pageColor:"#3D6FD4"});
+  const [showInvite,setShowInvite]=useState(false);
+  const [editColorFor,setEditColorFor]=useState(null);
+  const [spendMonth,setSpendMonth]=useState(new Date().getMonth());
+  const [spendYear,setSpendYear]=useState(new Date().getFullYear());
+  const [iForm,setIForm]=useState({name:"",note:"",store:"",category:"other",price:"",recurrence:"none",color:"#3D6FD4",image:null,video:null,forId:null,isPrivate:false});
+  const [tripMode,setTripMode]=useState(false);
+  const [shareModal,setShareModal]=useState(null);
+  const [currSearch,setCurrSearch]=useState("");
+  const chatEndRef=useRef();
+
+  const T=mkTheme(family.accentColor,dark);
+  const bannerRef=useRef();const familyLogoRef=useRef();const memPhotoRef=useRef();const itemImgRef=useRef();
+
+  const ap=profiles.find(p=>p.id===activeId);
+  const si=items.find(i=>i.id===selItemId);
+  const gp=id=>profiles.find(p=>p.id===id);
+  const unread=pid=>(gp(pid)?.notifications||[]).filter(n=>!n.read).length;
+  const boughtItems=items.filter(i=>i.purchased).sort((a,b)=>(b.purchasedAt||0)-(a.purchasedAt||0));
+  const currSym=currByCode(family.currency||"USD").symbol;
+  const fmtMoney=n=>fmt(n,currSym);
+  const fileToUrl=(file,cb)=>{const r=new FileReader();r.onload=ev=>cb(ev.target.result);r.readAsDataURL(file);};
+
+  const spendingItems=items.filter(it=>{if(!it.purchased||!it.purchasedAt)return false;const d=new Date(it.purchasedAt);return d.getMonth()===spendMonth&&d.getFullYear()===spendYear;});
+  const monthTotal=spendingItems.reduce((s,it)=>s+(parseFloat(it.price)||0),0);
+  const catSpend=CATEGORIES.map(cat=>({...cat,total:spendingItems.filter(it=>it.category===cat.id).reduce((s,it)=>s+(parseFloat(it.price)||0),0)})).filter(c=>c.total>0).sort((a,b)=>b.total-a.total);
+
+  const notify=(toId,msg)=>setProfiles(ps=>ps.map(p=>p.id===toId?{...p,notifications:[{id:Date.now(),msg,read:false,at:Date.now()},...(p.notifications||[])]}:p));
+  const markBought=(itemId,byId)=>{const it=items.find(i=>i.id===itemId);if(!it||it.purchased)return;setItems(is=>is.map(i=>i.id===itemId?{...i,purchased:true,purchasedBy:byId,purchasedAt:Date.now()}:i));notify(it.forId,`${gp(byId)?.name} bought "${it.name}" for you! 🛍️`);};
+  const unmark=id=>setItems(is=>is.map(i=>i.id===id?{...i,purchased:false,purchasedBy:null,purchasedAt:null}:i));
+  const react=(itemId,emoji,byId)=>{if(!byId)return;setItems(is=>is.map(i=>{if(i.id!==itemId)return i;const has=i.reactions.find(r=>r.by===byId&&r.type===emoji);return{...i,reactions:has?i.reactions.filter(r=>!(r.by===byId&&r.type===emoji)):[...i.reactions,{type:emoji,by:byId,at:Date.now()}]};}));const it=items.find(i=>i.id===itemId);if(it&&it.forId!==byId)notify(it.forId,`${gp(byId)?.name} reacted ${emoji} to "${it.name}"`);};
+  const addTextComment=(itemId,byId,text)=>{if(!text.trim()||!byId)return;setItems(is=>is.map(i=>i.id===itemId?{...i,comments:[...i.comments,{id:Date.now(),by:byId,text:text.trim(),at:Date.now(),type:"text"}]}:i));const it=items.find(i=>i.id===itemId);if(it&&it.forId!==byId)notify(it.forId,`${gp(byId)?.name} commented on "${it.name}"`);setCommentText("");};
+  const saveItem=()=>{if(!iForm.name.trim()||!iForm.forId)return;const data={...iForm,price:parseFloat(iForm.price)||0};if(editItemId){setItems(is=>is.map(i=>i.id===editItemId?{...i,...data}:i));}else{const ni={id:Date.now(),...data,addedBy:activeId,purchased:false,purchasedBy:null,reactions:[],comments:[],createdAt:Date.now(),tripTicked:false};setItems(is=>[...is,ni]);if(data.forId!==activeId)notify(data.forId,`${gp(activeId)?.name} added "${data.name}" to your wishlist`);}setView("member");setEditItemId(null);};
+  const dismissNotifs=pid=>setProfiles(ps=>ps.map(p=>p.id===pid?{...p,notifications:p.notifications.map(n=>({...n,read:true}))}:p));
+  const canSee=forId=>{const o=gp(forId);return!o?.isPrivate||forId===activeId;};
+  const tripTick=id=>setItems(is=>is.map(i=>i.id===id?{...i,tripTicked:!i.tripTicked}:i));
+  const endTrip=()=>{items.filter(i=>i.tripTicked&&!i.purchased&&activeId).forEach(it=>markBought(it.id,activeId));setItems(is=>is.map(i=>({...i,tripTicked:false})));setTripMode(false);};
+
+  const sendChatText=()=>{if(!chatText.trim()||!activeId)return;setChat(c=>[...c,{id:Date.now(),by:activeId,text:chatText.trim(),at:Date.now(),type:"text"}]);setChatText("");setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),80);};
+
+  const buildShareText=pid=>{const p=gp(pid);const pItems=items.filter(i=>i.forId===pid&&!i.purchased);if(!pItems.length)return`${p?.name} has no pending wishlist items right now! 🎉`;return`🧺 ${p?.name}'s Wishlist — The Blue Basket\n\n${pItems.map(it=>{const cat=catById(it.category);return`${cat.icon} ${it.name}${it.price?` (${fmtMoney(it.price)})`:""}\n${it.store?`   📍 ${it.store}`:""}${it.note?`\n   💬 ${it.note}`:""}`}).join("\n\n")}\n\n— Shared from The Blue Basket 🧺`;};
+
+  const shell=ch=><div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:T.ff,maxWidth:480,margin:"0 auto",overflowX:"hidden",position:"relative"}}><GStyles dark={dark}/>{ch}</div>;
+  const MediaOverlay=()=>showMedia?<div style={{position:"fixed",inset:0,background:T.overlay,zIndex:500,display:"flex",alignItems:"flex-end",backdropFilter:"blur(6px)"}} onClick={()=>setShowMedia(null)}><div onClick={e=>e.stopPropagation()} style={{background:T.card,borderRadius:"24px 24px 0 0",padding:20,width:"100%",maxWidth:480,margin:"0 auto",borderTop:`1px solid ${T.border}`}}>Test</div></div>:null;
+
+  const Nav=()=><div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:dark?"rgba(13,17,23,0.97)":"rgba(238,244,255,0.97)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,8px)"}}>
+    {[{id:"family",icon:"🏠",lbl:"Home"},{id:"member",icon:"👤",lbl:"Profile",needs:true},{id:"chat",icon:"💬",lbl:"Chat"},{id:"bought",icon:"🛍️",lbl:"Bought"},{id:"spending",icon:"📊",lbl:"Spending"},{id:"settings",icon:"⚙️",lbl:"Settings"}].map(n=>(
+      <button key={n.id} onClick={()=>{if(n.needs&&!activeId)return;setView(n.id);}} style={{flex:1,background:"transparent",border:"none",padding:"10px 0 6px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,opacity:n.needs&&!activeId?0.3:1,position:"relative"}}>
+        <span style={{fontSize:17}}>{n.icon}</span>
+        <span style={{fontSize:9,fontWeight:700,color:view===n.id?T.accent:T.dim,letterSpacing:0.3}}>{n.lbl}</span>
+        {view===n.id&&<div style={{position:"absolute",bottom:0,width:20,height:2,borderRadius:2,background:T.accent}}/>}
+      </button>
+    ))}
+  </div>;
+
+  if(view==="family") return shell(<>
+    <div className="fu" style={{paddingBottom:85}}>
+      <div style={{background:`linear-gradient(135deg,${T.blue3} 0%,${T.blue4} 100%)`,padding:"44px 22px 24px"}}>
+        <div style={{fontSize:28,fontFamily:"'Playfair Display',serif",fontWeight:700,color:"#fff",marginBottom:14}}>🧺 The Blue Basket</div>
+        <button onClick={()=>setDark(d=>!d)} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:20,padding:"6px 12px",cursor:"pointer",color:"#fff",fontSize:13}}>{dark?"☀️":"🌙"} Theme</button>
+      </div>
+      <div style={{padding:"20px"}}>
+        <div style={{background:T.card,borderRadius:16,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
+          <div style={{fontSize:16,fontFamily:T.serif,fontWeight:700,color:T.text}}>{family.name}</div>
+          <div style={{fontSize:12,color:T.sub,marginTop:4}}>{profiles.length} members · {items.length} items · {items.filter(i=>i.purchased).length} purchased</div>
+        </div>
+        <Lbl T={T}>Family Members</Lbl>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {profiles.map(p=>{
+            const pItems=items.filter(it=>it.forId===p.id);const pending=pItems.filter(it=>!it.purchased).length;
+            return <div key={p.id} className="card pi" onClick={()=>{setActiveId(p.id);setView("member");}} style={{background:T.card,borderRadius:16,padding:14,cursor:"pointer",border:`1px solid ${T.border}`}}>
+              <Av p={p} size={44} ring T={T}/>
+              <div style={{marginTop:10}}>
+                <div style={{fontSize:14,fontWeight:700,color:T.text}}>{p.name}</div>
+                <div style={{fontSize:11,color:T.sub,marginTop:2}}>{p.role}</div>
+                {pending>0&&<div style={{fontSize:10,background:`${T.accent}20`,color:T.accent,padding:"3px 8px",borderRadius:5,marginTop:6,fontWeight:700}}>{pending} pending</div>}
+              </div>
+            </div>;
+          })}
+        </div>
+      </div>
+    </div>
+    <Nav/>
+  </>);
+
+  if(view==="member"&&ap) return shell(<>
+    <div className="fu" style={{paddingBottom:90}}>
+      <div style={{background:`linear-gradient(135deg,${ap.pageColor}30 0%,${T.accent}20 100%)`,padding:"40px 20px 24px",borderBottom:`1px solid ${T.border}`}}>
+        <button onClick={()=>setView("family")} style={{background:"transparent",border:"none",color:T.sub,fontSize:16,cursor:"pointer",marginBottom:12}}>← Back</button>
+        <Av p={ap} size={60} ring T={T}/>
+        <div style={{marginTop:12}}>
+          <div style={{fontSize:20,fontFamily:T.serif,fontWeight:700,color:T.text}}>{ap.name}</div>
+          <div style={{fontSize:12,color:T.sub,marginTop:2}}>{ap.role}</div>
+        </div>
+      </div>
+      <div style={{padding:"16px 20px"}}>
+        <button onClick={()=>{setIForm({name:"",note:"",store:"",category:"other",price:"",recurrence:"none",color:ap.pageColor||T.accent,image:null,video:null,forId:activeId,isPrivate:false});setEditItemId(null);setView("addItem");}} style={{width:"100%",background:T.accent,border:"none",borderRadius:12,padding:14,cursor:"pointer",fontSize:14,color:"#fff",fontWeight:700,marginBottom:16}}>+ Add Item</button>
+        {items.filter(i=>i.forId===activeId).map(it=><ItemRow key={it.id} it={it} T={T} gp={gp} onClick={()=>{setSelItemId(it.id);setView("item");}} onReact={react} activeId={activeId} currSym={currSym}/>)}
+      </div>
+    </div>
+    <Nav/>
+  </>);
+
+  if(view==="chat") return shell(<>
+    <div style={{display:"flex",flexDirection:"column",height:"100vh"}}>
+      <div style={{background:`linear-gradient(135deg,${T.blue3},${T.blue4})`,padding:"44px 22px 18px",flexShrink:0}}>
+        <div style={{fontSize:24,fontFamily:T.serif,fontWeight:700,color:"#fff"}}>💬 Family Chat</div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
+        {chat.map((msg,i)=>{const sender=gp(msg.by);const isMe=msg.by===activeId;return <div key={msg.id} style={{display:"flex",flexDirection:isMe?"row-reverse":"row",gap:8,marginBottom:10,justifyContent:isMe?"flex-end":"flex-start"}}><div style={{background:isMe?T.accent:T.bgAlt,borderRadius:12,padding:"10px 14px",maxWidth:"70%"}}><div style={{fontSize:12,color:isMe?"#fff":T.text}}>{msg.text}</div><div style={{fontSize:9,color:isMe?"rgba(255,255,255,0.6)":T.sub,marginTop:4}}>{timeAgo(msg.at)}</div></div></div>;})}
+        <div ref={chatEndRef}/>
+      </div>
+      <div style={{padding:"12px 16px 24px",background:T.card,borderTop:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",gap:8}}>
+          <input value={chatText} onChange={e=>setChatText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChatText()} placeholder="Message..." style={{flex:1,background:T.bgAlt,border:`1px solid ${T.border2}`,borderRadius:20,padding:"10px 16px",fontSize:13,color:T.text,outline:"none"}}/>
+          <button onClick={sendChatText} disabled={!chatText.trim()} style={{background:T.accent,border:"none",borderRadius:"50%",width:38,height:38,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",opacity:chatText.trim()?1:0.5}}>➤</button>
+        </div>
+      </div>
+    </div>
+    <Nav/>
+  </>);
+
+  if(view==="bought") return shell(<>
+    <div className="fu" style={{paddingBottom:90}}>
+      <div style={{background:`linear-gradient(135deg,${T.success},${T.blue4})`,padding:"44px 22px 24px"}}>
+        <div style={{fontSize:24,fontFamily:T.serif,fontWeight:700,color:"#fff"}}>🛍️ Bought Items</div>
+      </div>
+      <div style={{padding:"16px 20px"}}>
+        {boughtItems.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:T.dim}}><div style={{fontSize:40}}>🎁</div><div style={{marginTop:12}}>Nothing bought yet</div></div>}
+        {boughtItems.map(it=><ItemRow key={it.id} it={it} T={T} gp={gp} onClick={()=>{setSelItemId(it.id);setView("item");}} onReact={react} activeId={activeId} showFor currSym={currSym}/>)}
+      </div>
+    </div>
+    <Nav/>
+  </>);
+
+  if(view==="spending") return shell(<>
+    <div className="fu" style={{paddingBottom:90}}>
+      <div style={{background:`linear-gradient(135deg,${T.gold}30,${T.accent}20)`,padding:"44px 22px 24px"}}>
+        <div style={{fontSize:24,fontFamily:T.serif,fontWeight:700,color:T.text}}>📊 Spending</div>
+      </div>
+      <div style={{padding:"16px 20px"}}>
+        <div style={{background:T.card,borderRadius:16,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <button onClick={()=>{setSpendMonth(m=>m===0?11:m-1);}} style={{background:T.bgAlt,border:"none",borderRadius:8,width:32,height:32,cursor:"pointer"}}>‹</button>
+            <div style={{flex:1,textAlign:"center",fontWeight:700}}>{MONTHS[spendMonth]}</div>
+            <button onClick={()=>{setSpendMonth(m=>m===11?0:m+1);}} style={{background:T.bgAlt,border:"none",borderRadius:8,width:32,height:32,cursor:"pointer"}}>›</button>
+          </div>
+          <div style={{fontSize:24,fontFamily:T.serif,fontWeight:700,color:T.accent}}>{fmtMoney(monthTotal)}</div>
+          <div style={{fontSize:12,color:T.sub,marginTop:6}}>{spendingItems.length} purchases</div>
+        </div>
+        {catSpend.map(cat=><div key={cat.id} style={{background:T.card,borderRadius:12,padding:14,marginBottom:10,border:`1px solid ${T.border}`}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><span style={{fontSize:20}}>{cat.icon}</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:T.text}}>{cat.label}</div><div style={{height:4,background:T.bgAlt,borderRadius:4,marginTop:6}}><div style={{height:"100%",width:`${monthTotal>0?cat.total/monthTotal*100:0}%`,background:cat.color,borderRadius:4}}/></div></div><div style={{fontSize:13,fontWeight:700,color:cat.color}}>{fmtMoney(cat.total)}</div></div></div>)}}
+      </div>
+    </div>
+    <Nav/>
+  </>);
+
+  if(view==="settings") return shell(<>
+    <div className="fu" style={{paddingBottom:90}}>
+      <div style={{background:`linear-gradient(135deg,${T.blue2},${T.blue3})`,padding:"44px 22px 24px"}}>
+        <div style={{fontSize:24,fontFamily:T.serif,fontWeight:700,color:"#fff"}}>⚙️ Settings</div>
+      </div>
+      <div style={{padding:"20px"}}>
+        <Lbl T={T}>Family Settings</Lbl>
+        <div style={{background:T.card,borderRadius:14,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
+          <label style={{fontSize:12,color:T.sub,fontWeight:700}}>Family Name</label>
+          <input value={family.name} onChange={e=>setFamily(f=>({...f,name:e.target.value}))} style={{width:"100%",background:T.bgAlt,border:`1px solid ${T.border2}`,borderRadius:10,padding:"10px 12px",fontSize:14,color:T.text,outline:"none",marginTop:8}}/>
+        </div>
+        <Lbl T={T}>Currency</Lbl>
+        <div style={{background:T.card,borderRadius:14,padding:0,border:`1px solid ${T.border}`,maxHeight:200,overflowY:"auto",marginBottom:16}}>
+          {CURRENCIES.slice(0,10).map(c=><button key={c.code} onClick={()=>setFamily(f=>({...f,currency:c.code}))} style={{width:"100%",padding:"12px 16px",background:family.currency===c.code?`${T.accent}12`:"transparent",border:"none",borderBottom:`1px solid ${T.border}`,cursor:"pointer",textAlign:"left",display:"flex",gap:10,alignItems:"center"}}><span>{c.flag}</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:T.text}}>{c.code}</div><div style={{fontSize:11,color:T.sub}}>{c.name}</div></div>{family.currency===c.code&&<span>✓</span>}</button>)}
+        </div>
+      </div>
+    </div>
+    <Nav/>
+  </>);
+
+  if(view==="addItem"&&ap) return shell(<>
+    <div className="fu">
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"16px 20px",borderBottom:`1px solid ${T.border}`,background:T.card}}>
+        <button onClick={()=>setView("member")} style={{background:"transparent",border:"none",color:T.sub,fontSize:20,cursor:"pointer"}}>←</button>
+        <div style={{fontSize:18,fontFamily:T.serif,fontWeight:700,color:T.text}}>Add Item</div>
+      </div>
+      <div style={{padding:"16px 20px 40px"}}>
+        <div style={{background:T.card,borderRadius:12,padding:14,border:`1px solid ${T.border}`,marginBottom:12}}>
+          <label style={{fontSize:11,color:T.dim,fontWeight:700}}>Item Name</label>
+          <input value={iForm.name} onChange={e=>setIForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Headphones" style={{width:"100%",background:"transparent",border:"none",fontSize:14,color:T.text,outline:"none",marginTop:6}}/>
+        </div>
+        <div style={{background:T.card,borderRadius:12,padding:14,border:`1px solid ${T.border}`,marginBottom:12}}>
+          <label style={{fontSize:11,color:T.dim,fontWeight:700}}>Price</label>
+          <input type="number" min="0" step="0.01" value={iForm.price} onChange={e=>setIForm(f=>({...f,price:e.target.value}))} placeholder="0.00" style={{width:"100%",background:"transparent",border:"none",fontSize:14,color:T.text,outline:"none",marginTop:6}}/>
+        </div>
+        <button onClick={saveItem} style={{width:"100%",background:T.accent,border:"none",borderRadius:12,padding:14,cursor:"pointer",fontSize:14,fontWeight:700,color:"#fff",marginTop:8}}>Save Item</button>
+      </div>
+    </div>
+  </>);
+
+  if(view==="item"&&si) return shell(<>
+    <div style={{padding:20,paddingBottom:40}}>
+      <button onClick={()=>setView("member")} style={{background:"transparent",border:"none",color:T.sub,cursor:"pointer",fontSize:14,marginBottom:16}}>← Back</button>
+      <div style={{background:T.card,borderRadius:16,padding:16,border:`1px solid ${T.border}`}}>
+        <div style={{fontSize:18,fontFamily:T.serif,fontWeight:700,color:T.text}}>{si.name}</div>
+        <div style={{fontSize:13,color:T.sub,marginTop:6}}>Price: {fmt(si.price,currSym)}</div>
+        {si.store&&<div style={{fontSize:13,color:T.sub,marginTop:4}}>Store: {si.store}</div>}
+        <div style={{display:"flex",gap:8,marginTop:12}}>
+          {!si.purchased?<button onClick={()=>markBought(si.id,activeId)} style={{flex:1,background:T.success,border:"none",borderRadius:10,padding:10,cursor:"pointer",color:"#fff",fontWeight:700}}>Mark Bought</button>:<button onClick={()=>unmark(si.id)} style={{flex:1,background:T.bgAlt,border:`1px solid ${T.border2}`,borderRadius:10,padding:10,cursor:"pointer",color:T.sub,fontWeight:700}}>Unmark</button>}
+        </div>
+      </div>
+    </div>
+  </>);
+
+  return shell(<div style={{padding:40,color:T.dim,textAlign:"center",paddingTop:100}}><div style={{fontSize:48}}>🧺</div><div style={{fontSize:18,fontFamily:T.serif,fontWeight:700,marginTop:12}}>Loading...</div></div>);
+}
