@@ -1,0 +1,133 @@
+# 🧺 The Blue Basket
+
+A modern, collaborative family shopping list app where family members can create wishlists, track purchases, share items, and communicate together.
+
+## Features
+
+✨ **Core Features**
+- Create and manage family wishlists
+- Track purchased items with family member attribution
+- Real-time expense tracking and analytics
+- Shopping trip mode for efficient purchasing
+- Dark/Light theme support
+- Multi-currency support (20+ currencies)
+
+👥 **Family Features**
+- Multiple family member profiles
+- Notifications for item updates
+- Family chat with messages
+- Private wishlist items
+- Shared expense analytics
+
+📊 **Analytics**
+- Monthly spending dashboard
+- Category-based expense breakdown
+- Per-person spending analysis
+- Purchase history
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- npm 9+
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/ferdindastan-spec/The-Blue-Basket.git
+cd The-Blue-Basket
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The app will open at `http://localhost:3000`
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+This creates an optimized build in the `dist/` folder.
+
+## Deployment
+
+### Deploy to Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Click "New Project"
+4. Import your GitHub repository
+5. Vercel will auto-detect Vite configuration
+6. Click "Deploy"
+
+Your app will be live with a URL like: `https://the-blue-basket.vercel.app`
+
+### Deploy to Netlify
+
+1. Push your code to GitHub
+2. Go to [netlify.com](https://netlify.com)
+3. Click "New site from Git"
+4. Connect your repository
+5. Build command: `npm run build`
+6. Publish directory: `dist`
+7. Click "Deploy"
+
+## Technology Stack
+
+- **React 18** - UI framework
+- **Vite** - Build tool & dev server
+- **Local Storage** - Data persistence
+- **CSS-in-JS** - Styled components
+
+## Project Structure
+
+```
+The-Blue-Basket/
+├── src/
+│   ├── App.jsx           # Main app component
+│   └── main.jsx          # Entry point
+├── index.html            # HTML template
+├── vite.config.js        # Vite configuration
+├── package.json          # Dependencies & scripts
+└── README.md            # This file
+```
+
+## Usage
+
+1. **Set up family**: Name your family and customize colors
+2. **Add members**: Create profiles for each family member
+3. **Add items**: Click the "+" button to add items to wishlists
+4. **Track purchases**: Mark items as purchased when bought
+5. **Share**: Use the share button to send wishlists
+6. **Chat**: Communicate with family in the chat
+7. **Analyze**: View spending analytics in the dashboard
+
+## Features Guide
+
+### 🛒 Shopping Trip Mode
+Activate quick shopping mode to efficiently check off items as you shop
+
+### 💬 Family Chat
+Send messages to coordinate shopping
+
+### 📊 Spending Dashboard
+Track monthly expenses by category and family member
+
+### 🎨 Customization
+- Set family accent color
+- Choose currency preference
+- Customize member page colors
+- Dark/Light theme toggle
+
+## Data Storage
+
+All data is stored in browser local storage. This means:
+- ✅ Works offline
+- ✅ No account neede
+
